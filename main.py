@@ -34,14 +34,13 @@ class DecisionTree:
 
 
 class ID3:
-    def __init__(self, x, thresh=None, max_depth=None):
-        self.x = x
+    def __init__(self, thresh=None, max_depth=None):
         # self.c = y.unique()
-        self.tree = DecisionTree()
-        self.q = deque([x])
-        self.tree_q = deque([self.tree.root])
-        self.thresh = thresh
-        self.max_depth = max_depth
+        self._tree = DecisionTree()
+        self._q = deque()
+        self._tree_q = deque()
+        self._thresh = 1.0 - thresh
+        self._max_depth = max_depth
 
     def entropy(self, x):
         n = x.shape[0]
@@ -74,37 +73,39 @@ class ID3:
                     min_child = uniques
 
         # Prevent overfitting by stopping early
-        if self.thresh is not None and h_min < self.thresh:
+        if self._thresh is not None and h_min > self._thresh:
             return 0, -1, np.array([])
         return h_min, h_min_index, min_child
 
-    def fit(self):
+    def fit(self, data):
         cur_depth = 0
         c = 1
-        while len(self.q) > 0:
+        self._q.append(data)
+        self._tree_q.append(self._tree.root)
+        while len(self._q) > 0:
             c -= 1
-            top = self.q.popleft()
+            top = self._q.popleft()
             h_min, h_min_index, min_child = self.h(top)
-            prev = self.tree_q.popleft()
+            prev = self._tree_q.popleft()
             prev.data[0] = h_min_index
             y_uni, y_uni_count = np.unique(top[:, -1], return_counts=True)
             prev.data[2] = y_uni[y_uni_count.argmax()]
             for child in min_child:
                 node = Node([None, child, -1])
                 mask = top[:, h_min_index] == child
-                self.q.append(top[mask])
-                self.tree_q.append(node)
+                self._q.append(top[mask])
+                self._tree_q.append(node)
                 prev.add_children(node)
 
             if c == 0:
-                c = len(self.q)
+                c = len(self._q)
                 cur_depth += 1
 
-            if self.max_depth is not None and cur_depth >= self.max_depth:
+            if self._max_depth is not None and cur_depth >= self._max_depth:
                 return
 
     def predict(self, x):
-        return self.tree.walk(x)
+        return self._tree.walk(x)
 
 
 if __name__ == '__main__':
@@ -128,6 +129,6 @@ if __name__ == '__main__':
     x = data[:, :-1]
     y = data[:, -1]
 
-    id3 = ID3(data)
-    id3.fit()
-    print(id3.predict(x))
+    id3 = ID3(thresh=1e-4, max_depth=4)
+    id3.fit(data)
+    print(id3.predict(x) - y)
