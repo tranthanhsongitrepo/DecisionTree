@@ -34,14 +34,14 @@ class DecisionTree:
 
 
 class ID3:
-    def __init__(self, x, thresh=1e-4):
+    def __init__(self, x, thresh=None, max_depth=None):
         self.x = x
         # self.c = y.unique()
         self.tree = DecisionTree()
         self.q = deque([x])
         self.tree_q = deque([self.tree.root])
-        if thresh is not None:
-            self.thresh = thresh
+        self.thresh = thresh
+        self.max_depth = max_depth
 
     def entropy(self, x):
         n = x.shape[0]
@@ -74,12 +74,15 @@ class ID3:
                     min_child = uniques
 
         # Prevent overfitting by stopping early
-        if h_min < self.thresh:
+        if self.thresh is not None and h_min < self.thresh:
             return 0, -1, np.array([])
         return h_min, h_min_index, min_child
 
     def fit(self):
+        cur_depth = 0
+        c = 1
         while len(self.q) > 0:
+            c -= 1
             top = self.q.popleft()
             h_min, h_min_index, min_child = self.h(top)
             prev = self.tree_q.popleft()
@@ -92,6 +95,13 @@ class ID3:
                 self.q.append(top[mask])
                 self.tree_q.append(node)
                 prev.add_children(node)
+
+            if c == 0:
+                c = len(self.q)
+                cur_depth += 1
+
+            if self.max_depth is not None and cur_depth >= self.max_depth:
+                return
 
     def predict(self, x):
         return self.tree.walk(x)
