@@ -1,6 +1,8 @@
 from collections import deque
 
 import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 
 class Node:
@@ -39,7 +41,10 @@ class ID3:
         self._tree = DecisionTree()
         self._q = deque()
         self._tree_q = deque()
-        self._thresh = 1.0 - thresh
+        if thresh is not None:
+            self._thresh = 1.0 - thresh
+        else:
+            self._thresh = None
         self._max_depth = max_depth
 
     def entropy(self, x):
@@ -90,45 +95,55 @@ class ID3:
             prev.data[0] = h_min_index
             y_uni, y_uni_count = np.unique(top[:, -1], return_counts=True)
             prev.data[2] = y_uni[y_uni_count.argmax()]
-            for child in min_child:
-                node = Node([None, child, -1])
-                mask = top[:, h_min_index] == child
-                self._q.append(top[mask])
-                self._tree_q.append(node)
-                prev.add_children(node)
+            if self._max_depth is None or (
+                    self._max_depth is not None and cur_depth <= self._max_depth):
+                for child in min_child:
+                    node = Node([None, child, -1])
+                    mask = top[:, h_min_index] == child
+
+                    self._q.append(top[mask])
+                    self._tree_q.append(node)
+                    prev.add_children(node)
 
             if c == 0:
                 c = len(self._q)
                 cur_depth += 1
-
-            if self._max_depth is not None and cur_depth >= self._max_depth:
-                return
 
     def predict(self, x):
         return self._tree.walk(x)
 
 
 if __name__ == '__main__':
-    data = [
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 2, 1],
-        [2, 1, 1, 1, 2],
-        [3, 2, 1, 1, 2],
-        [3, 3, 2, 1, 2],
-        [3, 3, 2, 2, 1],
-        [2, 3, 2, 2, 2],
-        [1, 2, 1, 1, 1],
-        [1, 3, 2, 1, 2],
-        [3, 2, 2, 1, 2],
-        [1, 2, 2, 2, 2],
-        [2, 2, 1, 2, 2],
-        [2, 1, 2, 1, 2],
-        [3, 2, 1, 2, 1],
-    ]
-    data = np.array(data)
-    x = data[:, :-1]
-    y = data[:, -1]
+    # data = [
+    #     [1, 1, 1, 1, 1],
+    #     [1, 1, 1, 2, 1],
+    #     [2, 1, 1, 1, 2],
+    #     [3, 2, 1, 1, 2],
+    #     [3, 3, 2, 1, 2],
+    #     [3, 3, 2, 2, 1],
+    #     [2, 3, 2, 2, 2],
+    #     [1, 2, 1, 1, 1],
+    #     [1, 3, 2, 1, 2],
+    #     [3, 2, 2, 1, 2],
+    #     [1, 2, 2, 2, 2],
+    #     [2, 2, 1, 2, 2],
+    #     [2, 1, 2, 1, 2],
+    #     [3, 2, 1, 2, 1],
+    # ]
+    # data = np.array(data)
+    # x = data[:, :-1]
+    # y = data[:, -1]
 
-    id3 = ID3(thresh=1e-4, max_depth=4)
-    id3.fit(data)
-    print(id3.predict(x) - y)
+    df = pd.read_csv('mushrooms_filtered.csv')
+    data = df.to_numpy()
+    data = data[:, 1:]
+    train, test = train_test_split(data, test_size=0.2)
+
+    id3 = ID3(max_depth=2)
+    id3.fit(train)
+
+    X_test, y_test = test[:, :-1], test[:, -1]
+    acc = id3.predict(X_test) == y_test
+    acc = acc.mean()
+    print(acc)
+# 0.9261538461538461
