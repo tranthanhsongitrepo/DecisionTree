@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split, cross_val_score, KFold, GridSearchCV
 from matplotlib import pyplot as plt
 
+
 class Node:
     def __init__(self, data):
         self.data = data
@@ -14,6 +15,12 @@ class Node:
 
     def add_children(self, children):
         self.children.append(children)
+
+    def __str__(self):
+        res = ""
+        for data in self.data:
+            res += str(data) + " "
+        return res
 
 
 class DecisionTree:
@@ -23,19 +30,33 @@ class DecisionTree:
     def walk(self, x):
         res = np.zeros((x.shape[0]))
         for i in range(x.shape[0]):
-            node = self.root
-            res[i] = int(self.walk_util(node, x[i, :]))
+            res[i] = int(self.walk_util(self.root, x[i, :]))
+            print('\n')
         return res
 
     def walk_util(self, node, s):
         # Leaf node
+        print(node)
+
         if len(node.children) == 0:
+            print(node.data[2])
             return node.data[2]
 
+        label_occurrence = {}
         for child in node.children:
+            label_occurrence[child.data[2]] = 0
             if child.data[1] == s[node.data[0]]:
                 return self.walk_util(child, s)
 
+        max_label = 0
+        max_label_occurrence = 0
+        for child in node.children:
+            label_occurrence[child.data[2]] += 1
+
+            if label_occurrence[child.data[2]] > max_label_occurrence:
+                max_label = child.data[2]
+                max_label_occurrence = label_occurrence[child.data[2]]
+        return max_label
 
 class ID3(BaseEstimator):
     def __init__(self, thresh=None, max_depth=None):
@@ -150,16 +171,17 @@ if __name__ == '__main__':
     folds = 5
     X = data[:, :-1]
     y = data[:, -1]
-    p_grid = {'max_depth': np.arange(10, 1000, 20), 'thresh': np.arange(1e-7, 1e-6, 9e-7)}
+    p_grid = {'max_depth': np.arange(10, 1000, 20), 'thresh': np.arange(1e-7, 0, 9e-7)}
 
     mask = np.random.randint(y.shape[0], size=(int(y.shape[0] * 0.2), 1))
     y[mask] = (y[mask] + 1) % 2
     # enumerate splits
     outer_results = list()
-    average_test_accs = np.zeros(50)
-    average_train_accs = np.zeros(50)
+    r = np.arange(1e-4, 0, - 1e-5)
+    average_test_accs = np.zeros(r.shape[0])
+    average_train_accs = np.zeros(r.shape[0])
 
-    for i in range(50):
+    for i, thresh in enumerate(r):
         cv_outer = KFold(n_splits=10, shuffle=True, random_state=1)
         average_test_acc = 0.0
         average_train_acc = 0.0
@@ -170,7 +192,7 @@ if __name__ == '__main__':
             # configure the cross-validation procedure
             # cv_inner = KFold(n_splits=3, shuffle=True, random_state=1)
             # define the model
-            model = ID3(max_depth=i, thresh=None)
+            model = ID3(max_depth=10, thresh=i)
             model.fit(X_train, y_train)
             #
             # # define search
@@ -198,11 +220,11 @@ if __name__ == '__main__':
         average_test_accs[i] = average_test_acc / 10
         average_train_accs[i] = average_train_acc / 10
 
+    # 0.9261538461538461
 
-# 0.9261538461538461
-
-    plt.plot(np.arange(50), average_test_accs, label='train')
-    plt.plot(np.arange(50), average_test_accs, label='test')
-    plt.xlabel("Max depth")
+    plt.plot(1 - r, average_train_accs, label='train')
+    plt.plot(1 - r, average_test_accs, label='test')
+    plt.xlabel("IG")
     plt.ylabel("Accuracy")
+    plt.legend()
     plt.show()
