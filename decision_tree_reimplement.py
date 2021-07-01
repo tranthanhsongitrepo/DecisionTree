@@ -2,7 +2,6 @@ from collections import deque
 
 import numpy as np
 import pandas as pd
-from id3 import Id3Estimator
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split, cross_val_score, KFold, GridSearchCV
@@ -172,12 +171,12 @@ if __name__ == '__main__':
     y = data[:, -1]
     p_grid = {'max_depth': np.arange(10, 1000, 20), 'thresh': np.arange(1e-7, 0, 9e-7)}
 
-    mask = np.random.randint(y.shape[0], size=(int(y.shape[0] * 0.2), 1))
-    y[mask] = (y[mask] + 1) % 2
+    # mask = np.random.randint(y.shape[0], size=(int(y.shape[0] * 0.2), 1))
+    # y[mask] = (y[mask] + 1) % 2
     # enumerate splits
     outer_results = list()
     # r = np.arange(1e-4, 0, - 1e-5)
-    r = np.arange(1, 40)
+    r = np.arange(1, 10)
 
     average_test_accs = np.zeros(r.shape[0])
     average_train_accs = np.zeros(r.shape[0])
@@ -193,7 +192,7 @@ if __name__ == '__main__':
             # configure the cross-validation procedure
             # cv_inner = KFold(n_splits=3, shuffle=True, random_state=1)
             # define the model
-            model = ID3(max_depth=thresh, thresh=None)
+            model = ID3(max_depth=i, thresh=None)
             model.fit(X_train, y_train)
             #
             # # define search
@@ -225,38 +224,7 @@ if __name__ == '__main__':
 
     plt.plot(r, average_train_accs, label='train')
     plt.plot(r, average_test_accs, label='test')
-
-    average_test_accs = np.zeros(r.shape[0])
-    average_train_accs = np.zeros(r.shape[0])
-    for i, thresh in enumerate(r):
-        cv_outer = KFold(n_splits=10, shuffle=True, random_state=1)
-        average_test_acc = 0.0
-        average_train_acc = 0.0
-        for train_ix, test_ix in cv_outer.split(X):
-            # split data
-            X_train, X_test = X[train_ix, :], X[test_ix, :]
-            y_train, y_test = y[train_ix], y[test_ix]
-
-            model = Id3Estimator(max_depth=thresh)
-            model.fit(X_train, y_train)
-            yhat = model.predict(X_test)
-            # evaluate the model
-            acc = accuracy_score(y_test, yhat)
-
-            average_test_acc += acc
-
-            yhat = model.predict(X_train)
-            # evaluate the model
-            acc = accuracy_score(y_train, yhat)
-            # store the result
-            average_train_acc += acc
-
-        average_test_accs[i] = average_test_acc / 10
-        average_train_accs[i] = average_train_acc / 10
-
-    plt.plot(r, average_train_accs, label='train_lib')
-    plt.plot(r, average_test_accs, label='test_lib')
-    plt.xlabel("Max depth")
+    plt.xlabel("IG")
     plt.ylabel("Accuracy")
     plt.legend()
     plt.show()
