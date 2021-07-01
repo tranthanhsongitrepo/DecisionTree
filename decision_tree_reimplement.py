@@ -2,8 +2,8 @@ from collections import deque
 
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator
-from sklearn.metrics import accuracy_score
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.metrics import accuracy_score, confusion_matrix, plot_confusion_matrix
 from sklearn.model_selection import train_test_split, cross_val_score, KFold, GridSearchCV
 from matplotlib import pyplot as plt
 
@@ -56,7 +56,7 @@ class DecisionTree:
         return max_label
 
 
-class ID3(BaseEstimator):
+class ID3(BaseEstimator, ClassifierMixin):
     def __init__(self, thresh=None, max_depth=None):
         super().__init__()
         # self.c = y.unique()
@@ -181,50 +181,18 @@ if __name__ == '__main__':
     average_test_accs = np.zeros(r.shape[0])
     average_train_accs = np.zeros(r.shape[0])
 
-    for i, thresh in enumerate(r):
-        cv_outer = KFold(n_splits=10, shuffle=True, random_state=1)
-        average_test_acc = 0.0
-        average_train_acc = 0.0
-        for train_ix, test_ix in cv_outer.split(X):
-            # split data
-            X_train, X_test = X[train_ix, :], X[test_ix, :]
-            y_train, y_test = y[train_ix], y[test_ix]
-            # configure the cross-validation procedure
-            # cv_inner = KFold(n_splits=3, shuffle=True, random_state=1)
-            # define the model
-            model = ID3(max_depth=i, thresh=None)
-            model.fit(X_train, y_train)
-            #
-            # # define search
-            # search = GridSearchCV(model, p_grid, scoring='accuracy', cv=cv_inner, refit=True)
-            # # execute search
-            # result = search.fit(X_train, y_train)
-            # # get the best performing model fit on the whole training set
-            # best_model = result.best_estimator_
-            # # evaluate model on the hold out dataset
-            yhat = model.predict(X_test)
-            # evaluate the model
-            acc = accuracy_score(y_test, yhat)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-            average_test_acc += acc
+    model = ID3(max_depth=3, thresh=None)
+    model.fit(X_train, y_train)
 
-            yhat = model.predict(X_train)
-            # evaluate the model
-            acc = accuracy_score(y_train, yhat)
-            # store the result
-            average_train_acc += acc
+    yhat = model.predict(X_test)
 
-            # report progress
-            # print(result.best_params_, result.best_score_)
+    print(confusion_matrix(y_test, yhat))
 
-        average_test_accs[i] = average_test_acc / 10
-        average_train_accs[i] = average_train_acc / 10
+    dsp = plot_confusion_matrix(model, X_test, y_test,
+                          display_labels=['won', 'nowin'],
+                          cmap=plt.cm.Blues, values_format = '.0f')
 
-    # 0.9261538461538461
-
-    plt.plot(r, average_train_accs, label='train')
-    plt.plot(r, average_test_accs, label='test')
-    plt.xlabel("IG")
-    plt.ylabel("Accuracy")
-    plt.legend()
+    dsp.ax_.set_title("Confusion matrix re-implementation")
     plt.show()
